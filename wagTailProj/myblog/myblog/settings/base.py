@@ -26,7 +26,7 @@ BASE_DIR = os.path.dirname(PROJECT_DIR)
 INSTALLED_APPS = [
     'home',
     'search',
-    'base',
+    'base',     # base app wagtail hyper application settings
 
     'wagtail.contrib.forms',
     'wagtail.contrib.redirects',
@@ -49,9 +49,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'wagtail.contrib.settings',
-    "wagtail.contrib.routable_page", # routable page
-    'wagtailmarkdown',              # for markdown field help
+    'wagtail.contrib.settings',         # for wagtail application settings
+    "wagtail.contrib.routable_page",    # routable page
+    'wagtailmarkdown',                  # for markdown field help
     'blog',
     'wagtailhyper',
 ]
@@ -84,7 +84,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'wagtail.contrib.settings.context_processors.settings',
+                'wagtail.contrib.settings.context_processors.settings',     # for application settings
             ],
         },
     },

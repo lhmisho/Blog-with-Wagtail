@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 wagtail = "*"
+wagtailhyper = {git = "https://git.divineit.net/shimul/wagtail-hyper-editor.git"}
 
 [dev-packages]
 pylint = "*"
