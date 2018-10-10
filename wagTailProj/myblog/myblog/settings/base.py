@@ -27,9 +27,10 @@ INSTALLED_APPS = [
     'home',
     'search',
     'base',     # base app wagtail hyper application settings
-
+    'easy_thumbnails', # easy thumbnil for svg image
     'wagtail.contrib.forms',
     'wagtail.contrib.redirects',
+    'wagtail.contrib.modeladmin', # adding model admin
     'wagtail.embeds',
     'wagtail.sites',
     'wagtail.users',

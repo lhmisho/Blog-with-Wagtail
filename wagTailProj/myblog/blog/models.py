@@ -2,6 +2,11 @@ import datetime
 from datetime import date
 from django.db import models
 
+from django import forms
+from django.core.exceptions import ValidationError
+import xml.etree.cElementTree as et
+
+
 from wagtail.core.models import Page
 from wagtail.core.fields import RichTextField
 from wagtail.admin.edit_handlers import FieldPanel
@@ -20,6 +25,10 @@ from wagtail.contrib.routable_page.models import RoutablePageMixin, route
 from wagtailmarkdown.fields import MarkdownField
 from wagtailmarkdown.edit_handlers import MarkdownPanel
 
+# New import for image 
+from wagtail.core.models import Page, Orderable
+from wagtail.images.edit_handlers import ImageChooserPanel
+from django.utils.html import format_html
 
 
 class BlogPage(RoutablePageMixin, Page):
@@ -108,3 +117,70 @@ class BlogPageTag(TaggedItemBase):
 class Tag(TaggitTag):
     class Meta:
         proxy = True
+
+#################################################################################
+
+# class SVGAndImageField(models.ImageField):
+#     def formfield(self, **kwargs):
+#         defaults = {'form_class': SVGAndImageFieldForm}
+#         defaults.update(kwargs)
+#         return super().formfield(**defaults)
+
+# class SVGAndImageFieldForm(forms.ImageField):
+#     def to_python(self, data):
+#         try:
+#             f = super().to_python(data)
+#         except ValidationError:
+#             return validate_svg(data)
+
+#         return f
+
+
+def validate_svg(f):
+    # Find "start" word in file and get "tag" from there
+    f.seek(0)
+    tag = None
+    try:
+        for event, el in et.iterparse(f, ('start',)):
+            tag = el.tag
+            break
+    except et.ParseError:
+        pass
+
+    # Check that this "tag" is correct
+    if tag != '{http://www.w3.org/2000/svg}svg':
+        raise ValidationError('Uploaded file is not an image or SVG file.')
+
+    # Do not forget to "reset" file
+    f.seek(0)
+
+    return f
+
+
+
+class SvgImage(models.Model):
+    title = models.CharField(max_length=250)
+    image = models.FileField(null=True, blank=True, validators=[validate_svg])
+
+    def colored_name(self):
+        return format_html(
+            '<img src="{}" alt="{}" height="87px" width="100px" />',
+            self.image,
+            self.title,
+        )
+
+    panels = [
+        FieldPanel('title'),
+        FieldPanel('image')
+    ]
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name = "SvgImage"
+        verbose_name_plural = "Svg Images" 
+
+
+
+

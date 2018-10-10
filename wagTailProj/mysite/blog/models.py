@@ -7,6 +7,11 @@ from wagtail.core.models import Page, Orderable
 from wagtail.images.edit_handlers import ImageChooserPanel
 from wagtail.admin.edit_handlers import InlinePanel
 
+# New imports added for documentsField -- Document
+from wagtail.documents.models import Document
+from wagtail.documents.edit_handlers import DocumentChooserPanel
+
+
 # New imports added for Tagging -- ClusterTaggableManager, TaggedItemBase, MultiFieldPanel
 from modelcluster.contrib.taggit import ClusterTaggableManager
 from taggit.models import TaggedItemBase
@@ -88,6 +93,24 @@ class BlogPageGalleryImage(Orderable):
         ImageChooserPanel('image'),
         FieldPanel('caption'),
     ]
+
+
+class BookPage(Page):
+    book_file = models.ForeignKey(
+        'wagtaildocs.Document',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+'
+    )
+
+    content_panels = Page.content_panels + [
+        DocumentChooserPanel('book_file'),
+    ]
+
+
+
+
 
 class FormField(AbstractFormField):
     page = ParentalKey('FormPage', related_name='custom_form_fields')
