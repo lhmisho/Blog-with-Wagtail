@@ -1,12 +1,7 @@
 import datetime
 from datetime import date
 from django.db import models
-
-from django import forms
-from django.core.exceptions import ValidationError
-import xml.etree.cElementTree as et
-
-
+from django.http import Http404, HttpResponse
 from wagtail.core.models import Page
 from wagtail.core.fields import RichTextField
 from wagtail.admin.edit_handlers import FieldPanel
@@ -24,13 +19,16 @@ from taggit.models import TaggedItemBase, Tag as TaggitTag
 from wagtail.contrib.routable_page.models import RoutablePageMixin, route
 from wagtailmarkdown.fields import MarkdownField
 from wagtailmarkdown.edit_handlers import MarkdownPanel
+from django.utils.formats import date_format
+from django.utils.dateformat import DateFormat
 
 # New import for image 
-from wagtail.core.models import Page, Orderable
-from wagtail.images.edit_handlers import ImageChooserPanel
 from django.utils.html import format_html
+from django.core.exceptions import ValidationError
+import xml.etree.cElementTree as et
 
 
+"""Class using for generating blog"""
 class BlogPage(RoutablePageMixin, Page):
     description = models.CharField(max_length=250, blank=True)
 
@@ -46,6 +44,38 @@ class BlogPage(RoutablePageMixin, Page):
 
     def get_posts(self):
         return PostPage.objects.descendant_of(self).live()
+
+    @route(r'^(\d{4})/$')
+    @route(r'^(\d{4})/(\d{2})/$')
+    @route(r'^(\d{4})/(\d{2})/(\d{2})/$')
+    def post_by_date(self, request, year, month=None, day=None, *args, **kwargs):
+        self.posts = self.get_posts().filter(date__year=year)
+        self.search_type = 'date'
+        self.search_term = year
+
+        if month:
+            self.posts = self.posts.filter(date__month=month)
+            df = DateFormat(date(int(year), int(month), 1))
+            self.search_term = df.format('F Y')
+        
+        if day:
+            self.posts = self.posts.filter(date__day=day)
+            df = DateFormat(date(int(year), int(month), int(day)))
+        
+        return Page.serve(self, request, *args, **kwargs)
+
+    # in post_by_date_slug we first get the slug from the URL, then find the post which have the slug, 
+    # if not found, we return 404 HTTP error, if found, we call Page.serve to render the post, the first parameters passed 
+    # in is the post object instead of blog page object itself, post_page.serve(request, *args, **kwargs) 
+    # should also work here too
+
+    @route(r'^(\d{4})/(\d{2})/(\d{2})/(.+)/$')
+    def post_by_date_slug(self, request, year, month, day, slug, *args, **kwargs):
+        post_page = self.get_posts().filter(slug=slug).first()
+
+        if not post_page:
+            raise Http404
+        return Page.serve(post_page, request, *args, **kwargs)
 
     @route(r'^tag/(?P<tag>[-\w]+)/$')
     def post_by_tag(self, request, tag, *args, **kwargs):
@@ -66,6 +96,7 @@ class BlogPage(RoutablePageMixin, Page):
         self.posts = self.get_posts()
         return Page.serve(self, request, *args, *kwargs)
 
+"""class using for generating post"""
 class PostPage(Page):
     body = RichTextField(blank=True)
     date = models.DateTimeField("Post date", default=datetime.datetime.today)
@@ -78,6 +109,8 @@ class PostPage(Page):
         FieldPanel('tags'),
     ]
 
+    # add a new field date to our PostPage, the value will be set when page instance is created.
+    # To make user can set it in edit page, we also add it to Page.settings_panels
     settings_panels = Page.settings_panels + [
         FieldPanel('date')
     ]
@@ -89,6 +122,7 @@ class PostPage(Page):
     def get_context(self, request, *args, **kwargs):
         context = super(PostPage, self).get_context(request, *args, **kwargs)
         context['blog_page'] = self.blog_page
+        context['post'] = self
         return context
 
 @register_snippet
@@ -118,24 +152,7 @@ class Tag(TaggitTag):
     class Meta:
         proxy = True
 
-#################################################################################
-
-# class SVGAndImageField(models.ImageField):
-#     def formfield(self, **kwargs):
-#         defaults = {'form_class': SVGAndImageFieldForm}
-#         defaults.update(kwargs)
-#         return super().formfield(**defaults)
-
-# class SVGAndImageFieldForm(forms.ImageField):
-#     def to_python(self, data):
-#         try:
-#             f = super().to_python(data)
-#         except ValidationError:
-#             return validate_svg(data)
-
-#         return f
-
-
+""" method for checking the file is svg or not """
 def validate_svg(f):
     # Find "start" word in file and get "tag" from there
     f.seek(0)
@@ -157,12 +174,13 @@ def validate_svg(f):
     return f
 
 
-
+"""Class for svg file upload"""
 class SvgImage(models.Model):
     title = models.CharField(max_length=250)
     image = models.FileField(null=True, blank=True, validators=[validate_svg])
 
-    def colored_name(self):
+    # it's returning HTML format for list_display on wagtail_hooks.py
+    def svgListDisplay(self):
         return format_html(
             '<img src="{}" alt="{}" height="87px" width="100px" />',
             self.image,
